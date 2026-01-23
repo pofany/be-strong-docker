@@ -1,28 +1,44 @@
-# ---------- BUILD ----------
+# ===== Build sffftage =====
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /app
-COPY . .
-WORKDIR /app/DotNet-8-Crud-Web-API-Example/DotNetCrudWebApi
+WORKDIR /src
 
+# Копіюємо весь контекст (в CI це буде ./bestrong_azure)
+COPY . .
+
+# Переходимо в папку проєкту
+WORKDIR /src/DotNet-8-Crud-Web-API-Example/DotNetCrudWebApi
+
+# DEBUG: Перевіряємо що файли скопіювались
+RUN ls -la && pwd
+
+# Restore залежностей
+RUN dotnet restore DotNetCrudWebApi.csproj
+
+# EF tool (потрібно для migrations bundle)
 RUN dotnet tool install --global dotnet-ef --version 8.*
 ENV PATH="$PATH:/root/.dotnet/tools"
 
-# Тепер ви вже В папці з .csproj, тому просто:
-RUN dotnet restore
-RUN dotnet ef migrations bundle -o /app/efbundle --self-contained -r linux-x64
-RUN dotnet publish -c Release -o /app/publish
+# Створюємо bundle міграцій у publish папку
+RUN dotnet ef migrations bundle \
+  --project DotNetCrudWebApi.csproj \
+  --startup-project DotNetCrudWebApi.csproj \
+  -o /app/publish/migrate
 
-# ---------- RUNTIME ----------
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
+# Publish
+RUN dotnet publish DotNetCrudWebApi.csproj -c Release -o /app/publish
+
+# ===== Runtime stage =====
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
+
+# Копіюємо результати publish
+COPY --from=build /app/publish .
+
+# Слухаємо 8080 (під App Service)
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 EXPOSE 8080
 
-RUN mkdir -p /app/data
-COPY --from=build /app/publish .
-COPY --from=build /app/efbundle ./efbundle
-COPY ./entrypoint.sh ./entrypoint.sh
-
-RUN chmod +x ./entrypoint.sh ./efbundle \
-    && chmod -R 777 /app/data
-
-ENTRYPOINT ["./entrypoint.sh"]
+# Entrypoint
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
