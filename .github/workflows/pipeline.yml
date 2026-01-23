@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  REGISTRY: acrbestrongtask2026.azurecr.io
+  REGISTRY: bestrongacr2026.azurecr.io
   IMAGE_NAME: dotnet-crud-api
   APP_NAME: app-bestrong-dotnet-docker
 
