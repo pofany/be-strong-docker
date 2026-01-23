@@ -9,6 +9,7 @@
     RUN dotnet tool install --global dotnet-ef --version 8.*
     ENV PATH="$PATH:/root/.dotnet/tools"
 
+    COPY *.sln ./
     COPY *.csproj ./
     RUN dotnet restore
     RUN dotnet ef migrations bundle -o /app/efbundle --self-contained -r linux-x64
