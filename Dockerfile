@@ -9,7 +9,7 @@
     RUN dotnet tool install --global dotnet-ef --version 8.*
     ENV PATH="$PATH:/root/.dotnet/tools"
     
-    RUN dotnet restore
+    RUN dotnet restore DotNetCrudWebApi.csproj
     RUN dotnet ef migrations bundle -o /app/efbundle --self-contained -r linux-x64
     RUN dotnet publish -c Release -o /app/publish
     
