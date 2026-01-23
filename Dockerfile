@@ -1,44 +1,32 @@
-# ===== Build sffftage =====
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /src
+# ---------- BUILD ----------
+    FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
-# Копіюємо весь контекст (в CI це буде ./bestrong_azure)
-COPY . .
-
-# Переходимо в папку проєкту
-WORKDIR /src/DotNet-8-Crud-Web-API-Example/DotNetCrudWebApi
-
-# DEBUG: Перевіряємо що файли скопіювались
-RUN ls -la && pwd
-
-# Restore залежностей
-RUN dotnet restore DotNetCrudWebApi.csproj
-
-# EF tool (потрібно для migrations bundle)
-RUN dotnet tool install --global dotnet-ef --version 8.*
-ENV PATH="$PATH:/root/.dotnet/tools"
-
-# Створюємо bundle міграцій у publish папку
-RUN dotnet ef migrations bundle \
-  --project DotNetCrudWebApi.csproj \
-  --startup-project DotNetCrudWebApi.csproj \
-  -o /app/publish/migrate
-
-# Publish
-RUN dotnet publish DotNetCrudWebApi.csproj -c Release -o /app/publish
-
-# ===== Runtime stage =====
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
-WORKDIR /app
-
-# Копіюємо результати publish
-COPY --from=build /app/publish .
-
-# Слухаємо 8080 (під App Service)
-ENV ASPNETCORE_URLS=http://0.0.0.0:8080
-EXPOSE 8080
-
-# Entrypoint
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-ENTRYPOINT ["/app/entrypoint.sh"]
+    WORKDIR /app
+    COPY . .
+    
+    WORKDIR /app/DotNet-8-Crud-Web-API-Example/DotNetCrudWebApi
+    
+    RUN dotnet tool install --global dotnet-ef --version 8.*
+    ENV PATH="$PATH:/root/.dotnet/tools"
+    
+    RUN dotnet restore
+    RUN dotnet ef migrations bundle -o /app/efbundle --self-contained -r linux-x64
+    RUN dotnet publish -c Release -o /app/publish
+    
+    # ---------- RUNTIME ----------
+    FROM mcr.microsoft.com/dotnet/aspnet:8.0
+    
+    WORKDIR /app
+    EXPOSE 8080
+    
+    RUN mkdir -p /app/data
+    
+    COPY --from=build /app/publish .
+    COPY --from=build /app/efbundle ./efbundle
+    COPY ./entrypoint.sh ./entrypoint.sh
+    
+    RUN chmod +x ./entrypoint.sh ./efbundle \
+     && chmod -R 777 /app/data
+    
+    ENTRYPOINT ["./entrypoint.sh"]
+    
