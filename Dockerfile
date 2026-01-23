@@ -29,4 +29,3 @@
      && chmod -R 777 /app/data
     
     ENTRYPOINT ["./entrypoint.sh"]
-    
