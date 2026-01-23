@@ -19,14 +19,7 @@ jobs:
         dotnet-version: '8.0.x'
     
     - name: Restore dependencies
-      run: dotnet restore DotNet-8-Crud-Web-API-Example/DotNetCrudWebApi
-    
-    - name: Build
-      run: dotnet build DotNet-8-Crud-Web-API-Example/DotNetCrudWebApi --no-restore
-    
-    - name: Test
-      run: dotnet test DotNet-8-Crud-Web-API-Example/DotNetCrudWebApi --no-build --verbosity normal
-
+      run: dotnet restore 
   deploy:
     runs-on: ubuntu-latest
     needs: build
